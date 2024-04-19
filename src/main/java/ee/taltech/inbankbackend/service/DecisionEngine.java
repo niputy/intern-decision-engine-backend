@@ -7,7 +7,8 @@ import ee.taltech.inbankbackend.exceptions.InvalidLoanPeriodException;
 import ee.taltech.inbankbackend.exceptions.InvalidPersonalCodeException;
 import ee.taltech.inbankbackend.exceptions.NoValidLoanException;
 import org.springframework.stereotype.Service;
-
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 /**
  * A service class that provides a method for calculating an approved loan amount and period for a customer.
  * The loan amount is calculated based on the customer's credit modifier,
@@ -51,7 +52,7 @@ public class DecisionEngine {
             maxLoanAmount = highestValidLoanAmount(creditModifier, loanPeriod);
         }
 
-        return new Decision(maxLoanAmount, loanPeriod, null);
+        return new Decision(0, loanPeriod, null);
     }
 
 
@@ -105,6 +106,9 @@ public class DecisionEngine {
         if (!validator.isValid(personalCode)) {
             throw new InvalidPersonalCodeException("Invalid personal ID code!");
         }
+        if (!isOldEnough(personalCode)) {
+            throw new InvalidPersonalCodeException("To approve a loan you must be an adult!");
+        }
         if (!(DecisionEngineConstants.MINIMUM_LOAN_AMOUNT <= loanAmount)
                 || !(loanAmount <= DecisionEngineConstants.MAXIMUM_LOAN_AMOUNT)) {
             throw new InvalidLoanAmountException("Invalid loan amount!");
@@ -114,4 +118,27 @@ public class DecisionEngine {
             throw new InvalidLoanPeriodException("Invalid loan period!");
         }
     }
+
+    /**
+     * Validates if the user is 18 years old or older based on an Estonian personal code
+     *
+     * @param personalCode Personal code from which the birth date is extracted
+     * @return True if the user is 18 years or older, false otherwise
+     */
+    public static boolean isOldEnough(String personalCode) {
+        // Extracting birth date from the personal code
+        String birthDateString = personalCode.substring(1, 7);
+
+        // Parsing the birth date string to LocalDate
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyMMdd");
+        LocalDate birthDate = LocalDate.parse(birthDateString, formatter);
+
+        // Calculating the age based on the birth date
+        LocalDate today = LocalDate.now();
+        int age = today.minusYears(birthDate.getYear()).getYear();
+
+        // Checking if the age is 18 or older
+        return age >= 18;
+    }
+
 }
